@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endless Diagrammatic Reasoning Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 Endless Diagrammatic Reasoning Test</h1>
+        <p>Test your logical reasoning with infinite visual puzzles</p>
+        
+        <div class="timer" id="timer">⏱️ 00:00:00</div>
+        
+        <div class="stats">
+            <div class="stat-item">Level: <span id="level">1</span></div>
+            <div class="stat-item">Score: <span id="score">0</span></div>
+            <div class="stat-item">Streak: <span id="streak">0</span></div>
+            <div class="stat-item">Accuracy: <span id="accuracy">0%</span></div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <div class="operator-guide">
+        <div class="guide-title">🔧 Operators Guide</div>
+        <div class="operators-row">
+            <div class="operator-item">
+                <div class="operator-symbol">(1)</div>
+                <div>Change all colors</div>
+            </div>
+            <div class="operator-item">
+                <div class="operator-symbol">(2)</div>
+                <div>Swap positions 1↔3</div>
+            </div>
+            <div class="operator-item">
+                <div class="operator-symbol">(3)</div>
+                <div>Change shapes only</div>
+            </div>
+            <div class="operator-item">
+                <div class="operator-symbol">(4)</div>
+                <div>Change first shape only</div>
+            </div>
+        </div>
+        <div class="guide-controls">
+            <div class="control-hint">💡 Click an answer to submit automatically | Press <kbd>Enter</kbd> to go to next question</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div id="question-container"></div>
+        
+        <div class="controls">
+            <button class="btn" onclick="nextQuestion()" id="next-btn">Next Question</button>
+        </div>
+        
+        <div id="feedback" class="feedback" style="display: none;"></div>
+    </div>
+
+    <script>
+        let currentLevel = 1;
+        let score = 0;
+        let streak = 0;
+        let totalQuestions = 0;
+        let correctAnswers = 0;
+        let selectedOption = null;
+        let currentQuestion = null;
+        let answered = false;
+        
+        // Timer variables
+        let startTime = Date.now();
+        let timerInterval;
+
+        const shapes = ['●', '▲', '■', '◆', '⬟', '★'];
+        const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+        
+        const operators = {
+            1: { name: 'Change Colors', symbol: '(1)' },
+            2: { name: 'Swap 1↔3', symbol: '(2)' },
+            3: { name: 'Change Shapes', symbol: '(3)' },
+            4: { name: 'Change First Only', symbol: '(4)' }
+        };
+
+        // Timer functions
+        function startTimer() {
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            const elapsed = Date.now() - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            const timeString = `⏱️ ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timer').textContent = timeString;
+        }
+
+        // Add keyboard event listener for Enter key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                nextQuestion();
+            }
+        });
+
+        function createFigure(shape, color) {
+            return { shape, color };
+        }
+
+        function applyOperator(figures, operatorId) {
+            const result = [...figures];
+            
+            switch(operatorId) {
+                case 1: // Change all colors
+                    return result.map(fig => ({
+                        ...fig,
+                        color: colors[Math.floor(Math.random() * colors.length)]
+                    }));
+                    
+                case 2: // Swap positions 1 and 3
+                    [result[0], result[2]] = [result[2], result[0]];
+                    return result;
+                    
+                case 3: // Change shapes only
+                    return result.map(fig => ({
+                        ...fig,
+                        shape: shapes[Math.floor(Math.random() * shapes.length)]
+                    }));
+                    
+                case 4: // Change first figure only (both shape and color)
+                    result[0] = {
+                        shape: shapes[Math.floor(Math.random() * shapes.length)],
+                        color: colors[Math.floor(Math.random() * colors.length)]
+                    };
+                    return result;
+            }
+            return result;
+        }
+
+        function applyMultipleOperators(figures, operatorIds) {
+            let result = [...figures];
+            for (const operatorId of operatorIds) {
+                result = applyOperator(result, operatorId);
+            }
+            return result;
+        }
+
+        function getDifficultyInfo(level) {
+            const cyclePosition = ((level - 1) % 30) + 1;
+            let difficulty, operatorCount;
+            
+            if (cyclePosition <= 10) {
+                difficulty = 'easy';
+                operatorCount = 1;
+            } else if (cyclePosition <= 20) {
+                difficulty = 'medium';
+                operatorCount = 2;
+            } else {
+                difficulty = 'hard';
+                operatorCount = 3;
+            }
+            
+            return { difficulty, operatorCount, cyclePosition };
+        }
+
+        function generateQuestion() {
+            const difficultyInfo = getDifficultyInfo(currentLevel);
+            const questionType = Math.random() < 0.5 ? 'find-operator' : 'find-output';
+            
+            // Generate random input figures
+            const inputFigures = [
+                createFigure(
+                    shapes[Math.floor(Math.random() * shapes.length)],
+                    colors[Math.floor(Math.random() * colors.length)]
+                ),
+                createFigure(
+                    shapes[Math.floor(Math.random() * shapes.length)],
+                    colors[Math.floor(Math.random() * colors.length)]
+                ),
+                createFigure(
+                    shapes[Math.floor(Math.random() * shapes.length)],
+                    colors[Math.floor(Math.random() * colors.length)]
+                )
+            ];
+
+            // Generate operators based on difficulty
+            const correctOperators = [];
+            const usedOperators = new Set();
+            
+            for (let i = 0; i < difficultyInfo.operatorCount; i++) {
+                let op;
+                do {
+                    op = Math.floor(Math.random() * 4) + 1;
+                } while (usedOperators.has(op));
+                usedOperators.add(op);
+                correctOperators.push(op);
+            }
+
+            if (questionType === 'find-operator') {
+                // Show input and output, ask for operators
+                const outputFigures = applyMultipleOperators(inputFigures, correctOperators);
+                
+                // Generate exactly 3 wrong operator combinations
+                const wrongOperatorSets = [];
+                const usedCombinations = new Set();
+                usedCombinations.add(JSON.stringify(correctOperators.sort()));
+                
+                while (wrongOperatorSets.length < 3) {
+                    const wrongOps = [];
+                    const usedInThisCombo = new Set();
+                    
+                    for (let i = 0; i < difficultyInfo.operatorCount; i++) {
+                        let op;
+                        do {
+                            op = Math.floor(Math.random() * 4) + 1;
+                        } while (usedInThisCombo.has(op));
+                        usedInThisCombo.add(op);
+                        wrongOps.push(op);
+                    }
+                    
+                    const comboKey = JSON.stringify(wrongOps.sort());
+                    if (!usedCombinations.has(comboKey)) {
+                        usedCombinations.add(comboKey);
+                        wrongOperatorSets.push({ operators: wrongOps });
+                    }
+                }
+                
+                const options = [
+                    { type: 'operator', value: correctOperators },
+                    ...wrongOperatorSets.map(wo => ({ type: 'operator', value: wo.operators }))
+                ].sort(() => Math.random() - 0.5);
+                
+                return {
+                    type: 'find-operator',
+                    input: inputFigures,
+                    output: outputFigures,
+                    correct: correctOperators,
+                    options: options,
+                    difficulty: difficultyInfo
+                };
+            } else {
+                // Show input and operators, ask for output
+                const correctOutput = applyMultipleOperators(inputFigures, correctOperators);
+                
+                // Generate exactly 3 wrong outputs
+                const wrongOutputs = [];
+                const usedOutputs = new Set();
+                usedOutputs.add(JSON.stringify(correctOutput));
+                
+                while (wrongOutputs.length < 3) {
+                    // Generate wrong outputs by applying different operator combinations
+                    const wrongOps = [];
+                    const usedInThisCombo = new Set();
+                    
+                    for (let i = 0; i < difficultyInfo.operatorCount; i++) {
+                        let op;
+                        do {
+                            op = Math.floor(Math.random() * 4) + 1;
+                        } while (usedInThisCombo.has(op));
+                        usedInThisCombo.add(op);
+                        wrongOps.push(op);
+                    }
+                    
+                    const wrongResult = applyMultipleOperators(inputFigures, wrongOps);
+                    const resultKey = JSON.stringify(wrongResult);
+                    
+                    if (!usedOutputs.has(resultKey)) {
+                        usedOutputs.add(resultKey);
+                        wrongOutputs.push(wrongResult);
+                    }
+                }
+                
+                const options = [correctOutput, ...wrongOutputs]
+                    .sort(() => Math.random() - 0.5)
+                    .map(output => ({ type: 'output', value: output }));
+                
+                return {
+                    type: 'find-output',
+                    input: inputFigures,
+                    operators: correctOperators,
+                    correct: correctOutput,
+                    options: options,
+                    difficulty: difficultyInfo
+                };
+            }
+        }
+
+        function renderFigures(figures) {
+            return figures.map(fig => 
+                `<div class="figure" style="color: ${fig.color}">${fig.shape}</div>`
+            ).join('');
+        }
+
+        function renderQuestion(question) {
+            const diffInfo = question.difficulty;
+            
+            let questionHTML = `
+                <div class="question-card">
+                    <div class="question-header">
+                        <div class="question-number">Level ${currentLevel} (${diffInfo.cyclePosition}/30)</div>
+                        <div class="difficulty ${diffInfo.difficulty}">${diffInfo.difficulty.toUpperCase()} - ${diffInfo.operatorCount} OP${diffInfo.operatorCount > 1 ? 'S' : ''}</div>
+                    </div>
+                    
+                    <div class="transformation-display">
+                        <div class="figure-group">${renderFigures(question.input)}</div>
+            `;
+            
+            if (question.type === 'find-operator') {
+                questionHTML += `
+                        <div class="arrow">→</div>
+                        <div class="operator-display">?</div>
+                        <div class="arrow">→</div>
+                        <div class="figure-group">${renderFigures(question.output)}</div>
+                `;
+            } else {
+                const operatorSymbols = question.operators.map(op => operators[op].symbol).join('');
+                questionHTML += `
+                        <div class="arrow">→</div>
+                        <div class="operator-display" style="font-size: ${question.operators.length > 1 ? '1.2rem' : '1.5rem'};">${operatorSymbols}</div>
+                        <div class="arrow">→</div>
+                        <div class="figure-group"><div class="question-mark">?</div></div>
+                `;
+            }
+            
+            questionHTML += `
+                    </div>
+                    
+                    <div class="options-container">
+            `;
+            
+            question.options.forEach((option, index) => {
+                if (option.type === 'operator') {
+                    const opSymbols = option.value.map(op => operators[op].symbol).join('');
+                    const opNames = option.value.map(op => operators[op].name).join(' + ');
+                    questionHTML += `
+                        <div class="option" onclick="selectOption(${index})">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">${opSymbols}</div>
+                            <div style="font-size: 0.9rem;">${opNames}</div>
+                        </div>
+                    `;
+                } else {
+                    questionHTML += `
+                        <div class="option" onclick="selectOption(${index})">
+                            <div class="figure-group">${renderFigures(option.value)}</div>
+                        </div>
+                    `;
+                }
+            });
+            
+            questionHTML += `
+                    </div>
+                </div>
+            `;
+            
+            return questionHTML;
+        }
+
+        function selectOption(index) {
+            if (answered) return; // Prevent multiple selections
+            
+            document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            document.querySelectorAll('.option')[index].classList.add('selected');
+            selectedOption = index;
+            answered = true;
+            
+            // Auto-submit the answer
+            submitAnswer();
+        }
+
+        function submitAnswer() {
+            if (selectedOption === null) return;
+            
+            const correctAnswer = currentQuestion.correct;
+            const selectedAnswer = currentQuestion.options[selectedOption];
+            
+            let isCorrect = false;
+            if (currentQuestion.type === 'find-operator') {
+                isCorrect = JSON.stringify(selectedAnswer.value.sort()) === JSON.stringify(correctAnswer.sort());
+            } else {
+                isCorrect = JSON.stringify(selectedAnswer.value) === JSON.stringify(correctAnswer);
+            }
+            
+            totalQuestions++;
+            
+            if (isCorrect) {
+                correctAnswers++;
+                const diffInfo = currentQuestion.difficulty;
+                score += currentLevel * 10 * diffInfo.operatorCount; // More points for harder questions
+                streak++;
+                showFeedback(`Correct! Well done! (+${currentLevel * 10 * diffInfo.operatorCount} points)`, 'correct');
+                
+                // Highlight correct answer
+                document.querySelectorAll('.option')[selectedOption].classList.add('correct');
+            } else {
+                streak = 0;
+                showFeedback('Incorrect. The correct answer was highlighted.', 'incorrect');
+                
+                // Highlight incorrect and correct answers
+                document.querySelectorAll('.option')[selectedOption].classList.add('incorrect');
+                
+                // Find and highlight correct answer
+                currentQuestion.options.forEach((option, index) => {
+                    let isThisCorrect = false;
+                    if (currentQuestion.type === 'find-operator') {
+                        isThisCorrect = JSON.stringify(option.value.sort()) === JSON.stringify(correctAnswer.sort());
+                    } else {
+                        isThisCorrect = JSON.stringify(option.value) === JSON.stringify(correctAnswer);
+                    }
+                    if (isThisCorrect) {
+                        document.querySelectorAll('.option')[index].classList.add('correct');
+                    }
+                });
+            }
+            
+            updateStats();
+            
+            // Disable all options to prevent further clicking
+            document.querySelectorAll('.option').forEach(opt => {
+                opt.style.pointerEvents = 'none';
+            });
+        }
+
+        function nextQuestion() {
+            currentLevel++;
+            selectedOption = null;
+            answered = false;
+            currentQuestion = generateQuestion();
+            
+            document.getElementById('question-container').innerHTML = renderQuestion(currentQuestion);
+            document.getElementById('feedback').style.display = 'none';
+            
+            updateProgress();
+        }
+
+        function showFeedback(message, type) {
+            const feedback = document.getElementById('feedback');
+            feedback.textContent = message;
+            feedback.className = `feedback ${type}`;
+            feedback.style.display = 'block';
+        }
+
+        function updateStats() {
+            document.getElementById('level').textContent = currentLevel;
+            document.getElementById('score').textContent = score;
+            document.getElementById('streak').textContent = streak;
+            
+            const accuracy = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+            document.getElementById('accuracy').textContent = accuracy + '%';
+        }
+
+        function updateProgress() {
+            const cyclePosition = ((currentLevel - 1) % 30) + 1;
+            const progress = (cyclePosition / 30) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+        }
+
+        // Initialize timer and first question
+        startTimer();
+        currentQuestion = generateQuestion();
+        document.getElementById('question-container').innerHTML = renderQuestion(currentQuestion);
+        updateStats();
+    </script>
+</body>
+</html>
